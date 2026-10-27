@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHOTLAB · 投篮姿势分析</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e6693c'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='white'/%3E%3Cpath d='M6 16h20M16 6v20M9 9l14 14M9 23 23 9' stroke='white'/%3E%3C/svg%3E">
+
+<style>
+:root{--bg:#f7f7f2;--bg-soft:#f0f2eb;--card:#fff;--card-strong:#fff;--line:#e6e8e0;--text:#242823;--muted:#73796f;--muted-2:#73796f;--primary:#c74a22;--accent:#397867;--success:#30734d;--warn:#a86813;--danger:#c44338;--shadow:0 3px 14px rgba(36,40,35,.025);--radius:16px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--text);font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+button,a{-webkit-tap-highlight-color:transparent}
+button{cursor:pointer}
+a{color:inherit}
+button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid #dc6a39;outline-offset:4px}
+[hidden],.hidden{display:none!important}
+svg{display:block}
+.topbar{height:80px;background:#fff;border-bottom:1px solid var(--line)}
+.topbar-inner{max-width:1248px;margin:auto;padding:0 32px;height:100%;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{width:38px;height:38px;border-radius:11px;background:#e6693c;color:white;display:grid;place-items:center}
+.brand-name{font-size:22px;letter-spacing:-1px;font-weight:800}
+.brand-name span{font-weight:400;color:#656d60;letter-spacing:0;font-size:13px;border-left:1px solid var(--line);margin-left:14px;padding-left:14px}
+.topnav{display:flex;align-items:center;gap:32px;height:100%}
+.nav-current{font-size:13px;position:relative;align-self:stretch;display:flex;align-items:center;font-weight:600}
+.nav-current:after{content:"";height:3px;background:var(--primary);position:absolute;bottom:0;left:0;right:0;border-radius:3px 3px 0 0}
+.guide-trigger{border:0;background:none;color:var(--muted);display:flex;align-items:center;gap:7px;padding:10px 0}
+.guide-trigger:hover{color:var(--primary)}
+.workspace-label{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.workspace-label:before{content:"";width:6px;height:6px;border-radius:50%;background:#6d825f}
+.shell{width:min(1184px,calc(100% - 64px));margin:0 auto;padding:26px 0 36px}
+.screen{display:none}
+.screen--upload.is-active,.screen--result.is-active{display:grid;gap:26px}
+.screen--loading.is-active{display:grid;place-items:center;min-height:calc(100vh - 200px)}
+.breadcrumb{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);letter-spacing:.3px}
+.breadcrumb span:last-child{color:var(--text)}
+.upload-hero{display:grid;grid-template-columns:1.4fr 1fr;align-items:center;gap:30px;min-height:184px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--primary);display:flex;align-items:center;gap:8px;margin:0 0 16px}
+.eyebrow:before{content:"";width:20px;height:2px;background:currentColor}
+.upload-hero h1{font-size:clamp(30px,3vw,42px);letter-spacing:-1.6px;line-height:1.42;margin:0;font-weight:750}
+.upload-hero h1 em{font-style:normal;color:var(--primary)}
+.hero-description{color:var(--muted);line-height:1.9;margin:16px 0 0;font-size:13px}
+.court-art{position:relative;justify-self:end;width:365px;max-width:100%;color:#a9afa0}
+.court-art svg{width:100%;height:196px}
+.court-caption{display:flex;justify-content:space-between;font-size:9px;letter-spacing:1.4px;color:var(--muted);padding:0 18px}
+.workflow{display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);padding-top:23px}
+.workflow-step{display:flex;align-items:center;gap:11px;color:var(--muted);white-space:nowrap}
+.workflow-step strong{font-size:13px;font-weight:500}
+.step-number{border:1px solid #d9ded2;color:#858d7e;font-size:12px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.workflow-step.is-current{color:var(--text)}
+.workflow-step.is-current .step-number{color:white;background:#30392b;border-color:#30392b}
+.step-line{height:1px;background:var(--line);flex:1;max-width:95px}
+.workflow-note{margin-left:auto;color:var(--muted);font-size:12px}
+.upload-workspace{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:22px;align-items:stretch}
+.upload-panel{min-width:0;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+.upload-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.upload-panel-heading h2{font-size:16px;margin:0;display:flex;align-items:center;gap:9px}
+.small-tag{border:1px solid var(--line);padding:5px 8px;border-radius:5px;color:var(--muted);font-size:11px}
+.upload-card{background:#fbfcf8;border:1.5px dashed #cfd5c5;border-radius:12px;text-align:center;cursor:pointer;padding:24px 16px;transition:background .2s,border-color .2s;min-height:222px;display:grid;justify-items:center;align-content:center;gap:11px}
+.upload-card:hover,.upload-card.is-dragover{background:#fff7ef;border-color:#d0653a}
+.upload-card.is-dragover{outline:3px solid #f8e7da}
+.upload-symbol{width:46px;height:46px;display:grid;place-items:center;border:1px solid #e3e7db;border-radius:13px;background:#fff;color:#66785a;margin-bottom:3px}
+.upload-card h3{font-size:15px;font-weight:600;margin:0}
+.upload-card p{font-size:12px;color:var(--muted);margin:0}
+.select-file-label{font-size:13px;background:white;border:1px solid #dfe3d6;padding:8px 18px;border-radius:7px;display:inline-flex;align-items:center;gap:9px;box-shadow:0 1px 2px #24282305}
+.select-file-label span{font-size:16px}
+.upload-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:20px}
+.file-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.file-info-copy{min-width:0}
+.file-name{font-size:13px;line-height:1.5;overflow-wrap:anywhere;color:var(--text)}
+.file-meta{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+.file-icon{color:#9aa28f;flex-shrink:0}
+.file-preview{width:38px;height:43px;object-fit:cover;border-radius:5px;background:#eff1e9;flex-shrink:0}
+.actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:1px solid transparent;border-radius:8px;padding:11px 18px;line-height:1.2;font-size:13px;font-weight:600;transition:background .18s,transform .18s}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.btn:disabled{cursor:not-allowed;transform:none}
+.btn--primary{background:var(--primary);color:#fff}
+.btn--primary:hover:not(:disabled){background:#ab3f1d}
+.btn--primary:disabled{background:#f2e6dd;color:#98745d}
+.btn--ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+.btn--ghost:disabled{color:#a6aca1;border-color:transparent}
+.upload-error{font-size:13px;line-height:1.6;color:var(--danger);background:#fff2ef;padding:10px 12px;border-radius:8px;margin:14px 0 0}
+.shooting-guide{padding:23px;background:#edf0e5;border:1px solid #e0e5d5;border-radius:var(--radius);display:flex;flex-direction:column}
+.guide-heading{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.guide-heading h2{font-size:14px;margin:0}
+.guide-heading svg{color:#7d8a70}
+.guide-intro{color:#707a64;font-size:12px;margin:9px 0 22px}
+.guide-list{list-style:none;padding:0;margin:0;display:grid;gap:22px}
+.guide-list li{display:flex;align-items:flex-start;gap:12px}
+.guide-list svg{flex-shrink:0;color:#70815e;margin-top:1px}
+.guide-list strong{font-size:13px;font-weight:600;display:block}
+.guide-list p{font-size:12px;color:#727c66;line-height:1.7;margin:5px 0 0}
+.guide-tip{font-size:11px;color:#727c66;line-height:1.7;margin:auto 0 0;padding-top:20px}
+.feature-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:25px;padding-top:2px}
+.feature{display:flex;gap:13px;padding:6px 0}
+.feature-icon{width:35px;height:35px;flex-shrink:0;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:#6b775e;background:#f1f3eb}
+.feature h3{font-size:13px;font-weight:600;margin:1px 0 7px}
+.feature p{font-size:12px;line-height:1.7;color:var(--muted);margin:0}
+.app-footer{border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;font-size:11px;color:var(--muted);padding-top:20px;letter-spacing:.3px}
+.app-footer strong{font-size:11px;letter-spacing:1px;font-weight:600}
+.guide-dialog{border:1px solid var(--line);border-radius:20px;background:var(--bg);color:var(--text);width:min(480px,calc(100% - 32px));padding:30px;box-shadow:0 20px 80px #24282325}
+.guide-dialog::backdrop{background:#24282366;backdrop-filter:blur(3px)}
+.guide-dialog h2{margin:0;font-size:22px}
+.guide-dialog>p{color:var(--muted);line-height:1.8;font-size:13px;margin:12px 0 25px}
+.guide-dialog .guide-list{gap:25px}
+.guide-dialog .btn{width:100%;margin-top:28px}
+input[type=file]{display:none}
+.text-success{color:var(--success)}
+.text-warn{color:var(--warn)}
+.text-danger{color:var(--danger)}
+@media(min-width:1500px){.shell{padding-top:36px}.screen--upload.is-active{gap:32px}.upload-hero{min-height:210px}.upload-card{min-height:245px}}
+@media(max-width:1000px){.workspace-label{display:none}.upload-workspace{grid-template-columns:minmax(0,1fr) 250px;gap:16px}.upload-panel{padding:20px}.upload-foot{flex-wrap:wrap}.upload-foot .actions{margin-left:auto}.workflow-note{display:none}.upload-hero{grid-template-columns:1.4fr 1fr}.court-art{width:290px}.shooting-guide{padding:20px}.feature-row{gap:18px}}
+@media(max-width:720px){.topbar{height:68px}.topbar-inner{padding:0 20px}.brand-name{font-size:20px}.brand-name span{display:none}.topnav{gap:22px}.shell{width:calc(100% - 36px);padding-top:22px}.screen--upload.is-active{gap:24px}.upload-hero{grid-template-columns:1fr;min-height:0}.court-art{display:none}.upload-hero h1{font-size:32px;letter-spacing:-1px}.hero-description{font-size:13px;max-width:420px}.eyebrow{margin-bottom:12px}.workflow{gap:12px;padding-top:20px}.workflow-step{gap:7px}.workflow-step strong{font-size:12px}.step-number{height:23px;width:23px}.step-line{min-width:5px}.upload-workspace{grid-template-columns:1fr}.upload-panel{padding:18px}.upload-panel-heading h2{font-size:15px}.upload-card{min-height:238px}.upload-foot{gap:18px}.file-info{flex-basis:100%}.upload-foot .actions{width:100%;justify-content:flex-end}.upload-foot .btn--primary{flex:1}.shooting-guide{padding:20px}.guide-list{gap:18px}.guide-tip{padding-top:18px}.feature-row{grid-template-columns:1fr;gap:15px}.feature{padding:0}.app-footer{font-size:9px}.nav-current{font-size:13px}.guide-trigger{font-size:13px}.guide-trigger svg{display:none}}
+@media(max-width:720px){.app-footer{flex-direction:column;gap:9px}}
+@media(max-width:380px){.topbar-inner{padding:0 16px;gap:12px}.brand{gap:8px}.brand-name{font-size:18px}.brand-mark{width:32px;height:32px}.topnav{gap:15px}.upload-panel-heading{align-items:flex-start;flex-direction:column}.workflow{gap:8px}.workflow-step{gap:5px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
+
+.panel,.loading-card{position:relative;border:1px solid var(--line);background:#fff;border-radius:18px;overflow:hidden;box-shadow:none;backdrop-filter:none}
+.panel::before,.loading-card::before{display:none}
+.loading-wrap{width:min(600px,100%);padding:48px 32px}
+.loading-stage{display:grid;gap:24px;justify-items:center;text-align:center}
+.loading-ring{--p:0deg;position:relative;width:128px;height:128px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(from -90deg,var(--primary) 0 var(--p),#eeeee7 var(--p) 360deg);box-shadow:none}
+.loading-ring::after{content:"";position:absolute;inset:9px;border-radius:50%;background:#fff;border:0}
+.loading-percent{position:relative;z-index:1;font-size:2rem;font-weight:700;letter-spacing:-.06em;font-variant-numeric:tabular-nums;text-shadow:none}
+.loading-copy h3{margin:0;font-size:1.35rem;letter-spacing:-.03em}
+.loading-copy p{margin:12px 0 0;color:var(--muted);font-size:.9rem;line-height:1.8}
+.loading-bar{width:min(380px,100%);height:5px;border-radius:999px;background:#eeeee7;overflow:hidden;border:0}
+.loading-bar>span{display:block;height:100%;width:0%;border-radius:inherit;background:var(--primary);box-shadow:none;transition:width .3s ease}
+.loading-sub{color:var(--muted);font-size:.8rem;line-height:1.7}
+.result-head{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding:4px 0 8px}
+.back-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 15px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);font:inherit;font-size:.85rem;cursor:pointer;transition:border-color .2s,background .2s}
+.back-btn:hover{border-color:#c9cec2;background:#f4f5ee;box-shadow:none}
+.back-btn:focus-visible,.speed-select:focus-visible{outline:3px solid #edb49e;outline-offset:3px}
+.result-title{display:grid;gap:7px;flex:1}
+.result-title h2{margin:0;font-size:1.7rem;letter-spacing:-.04em}
+.result-title p{margin:0;color:var(--muted);font-size:.85rem;line-height:1.7}
+.result-grid{display:grid;gap:20px}
+.dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi-card{min-width:0;min-height:148px;padding:22px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:none}
+.kpi-score{grid-column:span 2;display:flex;align-items:center;gap:24px;background:#f0f2e9}
+.score-ring{--score-angle:0deg;--ring-a:var(--primary);position:relative;display:grid;place-items:center;flex:0 0 auto;width:126px;height:126px;border-radius:50%;background:conic-gradient(from -90deg,var(--ring-a) 0 var(--score-angle),#dce1d3 var(--score-angle) 360deg);box-shadow:none}
+.score-ring::after{content:"";position:absolute;inset:9px;border:0;border-radius:50%;background:#f0f2e9}
+.score-ring__inner{position:relative;z-index:1;display:grid;gap:5px;text-align:center}
+.score-value{font-size:2.3rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.07em;line-height:1}
+.score-unit{color:var(--muted);font-size:.75rem}
+.score-meta{display:grid;justify-items:start;gap:10px;min-width:0}
+.score-meta h3{margin:0;font-size:1.05rem}
+.score-meta p{margin:0;color:#6c7365;font-size:.81rem;line-height:1.75}
+.metric-card{display:grid;gap:15px;align-content:space-between}
+.metric-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.metric-icon{display:grid;place-items:center;flex:0 0 auto;width:32px;height:32px;border-radius:9px;border:0;background:#f5f5ef;font-size:1rem;box-shadow:none}
+.metric-icon--orange{color:#c95a35;background:#faf0e9;box-shadow:none}
+.metric-icon--cyan{color:#557c7c;background:#edf3f0;box-shadow:none}
+.metric-icon--green{color:#647a4d;background:#f0f3e9;box-shadow:none}
+.metric-icon--yellow{color:#a0833e;background:#f8f3e6;box-shadow:none}
+.metric-label{margin:0;color:var(--muted);font-size:.8rem;line-height:1.5}
+.metric-value{margin:0;color:var(--text);font-size:1.85rem;font-weight:650;line-height:1.1;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.metric-note{color:var(--muted);font-size:.76rem;line-height:1.5;overflow-wrap:anywhere}
+.tone-success .metric-value,.tone-success .issue-score{color:var(--success)}
+.tone-warn .metric-value,.tone-warn .issue-score{color:var(--warn)}
+.tone-danger .metric-value,.tone-danger .issue-score{color:var(--danger)}
+.panel{padding:26px}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.panel-kicker{margin:0 0 9px;color:var(--primary);font-size:.7rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase}
+.panel-head h3{margin:0;font-size:1.2rem;letter-spacing:-.025em;line-height:1.5}
+.panel-note{margin:7px 0 0;color:var(--muted);font-size:.82rem;line-height:1.7;max-width:660px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
+.status-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:#f8f9f4;color:#747b6d;font-size:.72rem;line-height:1.4}
+.status-pill--accent{color:#59704a;border-color:#dfe5d4;background:#edf2e6}
+.status-pill--warn{color:#a57426;border-color:#eedebb;background:#faf4e5}
+.status-pill--danger{color:#b85b43;border-color:#eed8cf;background:#fbefe9}
+.speed-select{appearance:auto;padding:5px 22px 5px 7px;border:0;border-radius:6px;background:#fff;color:var(--text);font:inherit;font-size:.75rem;cursor:pointer}
+.compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.video-card{display:grid;align-content:start;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#f7f8f3}
+.video-head{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--text);font-size:.83rem;font-weight:550}
+.video-frame{--ratio:9 / 16;position:relative;width:100%;aspect-ratio:var(--ratio);max-height:65vh;overflow:hidden;border:1px solid #e1e5db;border-radius:10px;background:#e9ece3;box-shadow:none}
+.video-frame video{display:block;width:100%;height:100%;object-fit:contain;background:transparent}
+.compare-summary{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:14px;padding-top:18px}
+.summary-pills{display:flex;flex-wrap:wrap;gap:7px}
+.mini-note{color:var(--muted);font-size:.75rem;line-height:1.7}
+.chart-box{width:100%;height:380px;min-height:320px}
+.diagnosis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:14px}
+.issue-card{display:grid;align-content:start;gap:14px;padding:20px;border:1px solid var(--line);border-radius:14px;background:#fcfcf9}
+.issue-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.issue-title{margin:0 0 8px;font-size:.95rem;font-weight:600;line-height:1.5}
+.issue-detail{margin:0;color:var(--muted);font-size:.81rem;line-height:1.8}
+.issue-tip{margin:0;padding-top:10px;border-top:1px solid var(--line);color:#617253;font-size:.8rem;line-height:1.75}
+.issue-score{font-size:1.1rem;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
+.issue-bar{height:4px;border-radius:999px;background:#e9ece2;overflow:hidden}
+.issue-bar>span{display:block;height:100%;width:0%;border-radius:inherit;background:var(--primary)}
+.tone-success .issue-bar>span{background:var(--success)}
+.tone-warn .issue-bar>span{background:var(--warn)}
+.tone-danger .issue-bar>span{background:var(--danger)}
+.star-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.star-card{display:grid;align-content:start;gap:14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fcfcf9}
+.star-media{width:100%;aspect-ratio:16 / 9;overflow:hidden;border:1px solid #e1e5db;border-radius:10px;background:#e9ece3}
+.star-media video{display:block;width:100%;height:100%;object-fit:cover}
+.star-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.star-name{margin:0 0 6px;font-size:1rem;font-weight:600}
+.star-desc{margin:0;color:var(--muted);font-size:.81rem;line-height:1.75}
+.star-detail,.star-source{color:var(--muted);font-size:.75rem;line-height:1.7;overflow-wrap:anywhere}
+.star-source a{color:#65794f;text-decoration:none}
+.star-source a:hover{text-decoration:underline}
+.empty-state,.alert-box{padding:22px;border:1px solid var(--line);border-radius:14px;background:#f7f8f1;color:#6f7965;font-size:.87rem;line-height:1.8}
+.alert-box{border-color:#ecdcc5;background:#fcf6ec;color:#946c3d}
+@media(max-width:1100px){
+  .dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi-score{grid-column:span 2}
+  .toolbar{justify-content:flex-start}
+}
+@media(max-width:640px){
+  .loading-wrap{padding:36px 22px}
+  .result-head{gap:16px}
+  .result-head>.status-pill{display:none}
+  .result-title{flex-basis:100%;order:-1}
+  .result-title h2{font-size:1.5rem}
+  .dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .kpi-card{min-height:135px;padding:16px}
+  .kpi-score{grid-column:span 2;flex-direction:row;align-items:center;gap:18px;padding:22px 18px}
+  .score-ring{width:104px;height:104px}
+  .score-value{font-size:1.95rem}
+  .score-meta{gap:8px}
+  .score-meta p{font-size:.75rem}
+  .score-meta .summary-pills{display:none}
+  .metric-value{font-size:1.55rem}
+  .metric-icon{width:27px;height:27px}
+  .panel{padding:19px 15px;border-radius:18px}
+  .panel-head{gap:14px;margin-bottom:18px}
+  .panel-head h3{font-size:1.05rem}
+  .panel-note{font-size:.77rem}
+  .compare-grid{grid-template-columns:1fr;gap:14px}
+  .video-card{padding:10px}
+  .video-frame{max-height:58vh}
+  .chart-box{height:350px;min-height:300px}
+  .diagnosis-grid,.star-grid{grid-template-columns:1fr}
+  .issue-card{padding:17px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.5 5.5c7 2 11 6 13 13M5.5 18.5c7-2 11-6 13-13"/></svg></div>
+        <div class="brand-name">SHOTLAB<span>投篮姿势分析</span></div>
+      </div>
+      <nav class="topnav" aria-label="主导航"><span class="nav-current">分析工作台</span><button class="guide-trigger" id="guide-open-btn" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4m0 3v1"/></svg>拍摄指南</button></nav>
+      <div class="workspace-label">专注每一次出手</div>
+    </div>
+  </header>
+  <main class="shell">
+    <section id="upload-page" class="screen screen--upload is-active">
+      <div style="padding:14px 20px;margin:16px auto;max-width:1100px;background:#fff1df;color:#713c17;border-radius:12px;line-height:1.6">网页展示版：可以浏览界面和在本机预览视频，在线分析功能暂未开放，视频不会上传。</div>
+      <div class="breadcrumb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z M9 20v-7h6v7"/></svg><span>训练空间</span><span aria-hidden="true">/</span><span>投篮分析</span></div>
+      <div class="upload-hero">
+        <div>
+          <p class="eyebrow">A BETTER SHOT STARTS HERE</p>
+          <h1>让每一次出手，<br>都有<em>进步的方向。</em></h1>
+          <p class="hero-description">上传一段投篮视频，看懂动作里的每个细节。<br>从姿势对照到改进建议，让下一次训练更有目标。</p>
+        </div>
+        <div class="court-art" aria-hidden="true">
+          <svg viewBox="0 0 365 196" fill="none">
+            <g stroke="#d4d9ca" stroke-width="1.2"><path d="M40 175 81 24h204l41 151Z"/><path d="M108 175 124 88h118l16 87M129 64h108M177 49h13"/><ellipse cx="183" cy="96" rx="59" ry="19"/><path d="M183 24v24M63 89c11 89 229 89 240 0M71 62l-7 29M294 62l8 28"/><ellipse cx="183" cy="60" rx="7" ry="3"/></g>
+            <ellipse cx="183" cy="60" rx="7" ry="3" stroke="#c74a22" stroke-width="2"/>
+            <path d="M279 123C302 11 215-1 183 59" stroke="#d3744c" stroke-width="1.5" stroke-dasharray="4 5"/>
+            <circle cx="264" cy="38" r="12" fill="#e97548"/><g stroke="#a93e1d" stroke-width="1"><path d="M252 37h24M264 26v24M256 29c10 4 13 12 15 18M256 47c10-4 13-12 15-18"/></g>
+            <circle cx="279" cy="125" r="5" fill="#6d7f59"/><circle cx="279" cy="125" r="11" stroke="#a3ae95" stroke-width="1"/><path d="M276 122l5 5m-5 0 5-5" stroke="white" stroke-width="1"/>
+            <path d="M30 175h307" stroke="#9ca78f" stroke-width="1.5"/><path d="M36 181h23M310 181h23" stroke="#ccd3c2"/>
+            <text x="20" y="22" fill="#79846d" font-size="9" font-family="Arial" letter-spacing="1.5">THE SHOT LAB.</text><text x="316" y="164" fill="#79846d" font-size="9" font-family="Arial">01</text>
+          </svg>
+          <div class="court-caption"><span>SHOOT. REVIEW. IMPROVE.</span><span>球场示意</span></div>
+        </div>
+      </div>
+      <div class="workflow" aria-label="分析流程"><div class="workflow-step is-current"><span class="step-number">01</span><strong>上传视频</strong></div><span class="step-line"></span><div class="workflow-step"><span class="step-number">02</span><strong>智能分析</strong></div><span class="step-line"></span><div class="workflow-step"><span class="step-number">03</span><strong>查看报告</strong></div><span class="workflow-note">一次复盘，一点进步。</span></div>
+      <div class="upload-workspace">
+        <section class="upload-panel">
+          <div class="upload-panel-heading"><h2><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3Z"/></svg>上传你的投篮视频</h2><span class="small-tag">单次投篮 · 效果更佳</span></div>
+          <input type="file" id="file-input" accept=".mp4,.mov,.avi,.webm" aria-label="选择投篮视频">
+          <div class="upload-card" id="upload-zone" role="button" tabindex="0" aria-label="选择或拖入投篮视频" aria-describedby="upload-formats">
+            <div class="upload-symbol"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></div>
+            <h3 id="upload-title">拖拽视频到这里</h3>
+            <p id="upload-formats">支持 MP4、MOV、AVI、WEBM 格式</p>
+            <span class="select-file-label">选择视频<span aria-hidden="true">↗</span></span>
+          </div>
+          <p id="upload-error" class="upload-error" role="alert" hidden></p>
+          <div class="upload-foot">
+            <div class="file-info" aria-live="polite">
+              <svg class="file-icon" id="file-icon" width="26" height="29" viewBox="0 0 24 28" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M5 2h9l5 5v19H5Z M14 2v6h5"/><path d="m10 13 5 3-5 3Z"/></svg>
+              <video class="file-preview" id="file-preview" muted playsinline preload="metadata" hidden aria-label="所选视频缩略图"></video>
+              <div class="file-info-copy"><div id="file-name" class="file-name">还没有选择视频</div><div id="file-meta" class="file-meta">选择完成后，即可开始分析</div></div>
+            </div>
+            <div class="actions"><button class="btn btn--ghost" id="reset-upload-btn" type="button" disabled>清空</button><button class="btn btn--primary" id="analyze-btn" type="button" disabled>在线分析暂未开放</button></div>
+          </div>
+        </section>
+        <aside class="shooting-guide" id="shooting-guide">
+          <div class="guide-heading"><h2>拍好视频，分析更准确</h2><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h4v15H4V5Z"/><circle cx="12" cy="12" r="4"/></svg></div>
+          <p class="guide-intro">开始之前，留意这三个小细节。</p>
+          <ul class="guide-list">
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8V3h5m8 0h5v5M3 16v5h5m8 0h5v-5"/><circle cx="12" cy="9" r="2"/><path d="M8 18v-3a4 4 0 0 1 8 0v3"/></svg><div><strong>全身入镜</strong><p>从头到脚完整可见，避免身体被遮挡。</p></div></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><div><strong>从侧面拍摄</strong><p>固定机位，让投篮手臂朝向镜头。</p></div></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/></svg><div><strong>清晰、完整的动作</strong><p>光线充足，保留准备到出手后的完整过程。</p></div></li>
+          </ul>
+          <p class="guide-tip">小提示：画面中尽量只保留一位投篮者。</p>
+        </aside>
+      </div>
+      <div class="feature-row">
+        <article class="feature"><div class="feature-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 17 10 7l5 8 5-11"/><circle cx="4" cy="17" r="2"/><circle cx="10" cy="7" r="2"/><circle cx="15" cy="15" r="2"/></svg></div><div><h3>看清动作细节</h3><p>捕捉关节角度，定位关键出手瞬间。</p></div></article>
+        <article class="feature"><div class="feature-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="7" height="14" rx="1.5"/><rect x="14" y="5" width="7" height="14" rx="1.5"/></svg></div><div><h3>对照标准姿势</h3><p>双视频同步播放，逐步发现动作差异。</p></div></article>
+        <article class="feature"><div class="feature-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 4h14v17H5Z M9 3h6v3H9Z M8 11h8M8 15h5"/></svg></div><div><h3>找到训练重点</h3><p>按优先级查看建议，把复盘变成进步。</p></div></article>
+      </div>
+      <footer class="app-footer"><strong>SHOTLAB / 每一投，都算数。</strong><span>以标准动作为基础 · 球星姿势仅供兴趣参考</span></footer>
+    </section>
+
+    <section id="loading-page" class="screen screen--loading">
+      <div class="loading-card loading-wrap" role="status" aria-live="polite">
+        <div class="loading-stage">
+          <div class="loading-ring" id="loading-ring">
+            <div class="loading-percent" id="progress-text">0%</div>
+          </div>
+          <div class="loading-copy">
+            <h3>正在分析投篮姿势</h3>
+            <p>正在提取关节轨迹、对照标准动作并整理训练建议。</p>
+          </div>
+          <div class="loading-bar"><span id="progress-fill"></span></div>
+          <div class="loading-sub">分析时间取决于视频长度，请保持页面打开。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="result-page" class="screen screen--result">
+      <div class="result-head">
+        <button class="back-btn" id="back-btn" type="button">← 分析新视频</button>
+        <div class="result-title">
+          <h2>你的投篮分析报告</h2>
+          <p>从关键数据到动作对照，找到下一次训练的重点。</p>
+        </div>
+        <div class="status-pill status-pill--accent">同步播放 · 图表联动</div>
+      </div>
+
+      <div class="dashboard-grid" id="stats-row"></div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">标准对照</p>
+            <h3>逐步看清，你与标准动作的差异</h3>
+            <p class="panel-note">播放你的投篮视频，标准动作与图表时间线会同步跟随。</p>
+          </div>
+          <div class="toolbar">
+            <span class="status-pill status-pill--accent">双视频同步</span>
+            <label class="status-pill" style="gap:10px">
+              <span>速度</span>
+              <select id="speed-selector" class="speed-select">
+                <option value="1">1× 正常</option>
+                <option value="0.5">0.5× 慢放</option>
+                <option value="0.25">0.25× 慢放</option>
+                <option value="2">2× 快放</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="comparison-slot"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">角度轨迹</p>
+            <h3>关节角度随时间变化</h3>
+            <p class="panel-note">点击图例筛选关节，沿出手参考线查看关键角度。</p>
+          </div>
+          <div class="toolbar">
+            <span class="status-pill">点击图例筛选</span>
+            <span class="status-pill status-pill--accent">出手瞬间高亮</span>
+          </div>
+        </div>
+        <div id="angle-chart" class="chart-box"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">诊断建议</p>
+            <h3>需要改进的地方</h3>
+            <p class="panel-note">先关注得分较低的项目，再逐步调整动作细节。</p>
+          </div>
+        </div>
+        <div id="issues-container" class="diagnosis-grid"></div>
+      </section>
+
+      <section class="panel" id="template-card" hidden>
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">球星参考</p>
+            <h3>最相似的球星动作</h3>
+            <p class="panel-note">与你最接近的球星动作，仅供兴趣参考；训练请以标准对照为基础。</p>
+          </div>
+        </div>
+        <div id="template-results" class="star-grid"></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<dialog class="guide-dialog" id="guide-dialog" aria-labelledby="guide-title">
+  <h2 id="guide-title">拍好一段投篮视频</h2>
+  <p>不需要专业设备。找一个固定机位，完整记录一次投篮，就可以开始复盘。</p>
+  <ul class="guide-list">
+    <li><span class="step-number">01</span><div><strong>让全身和篮球保持在画面中</strong><p>镜头留出起跳空间，避免手臂、头部或脚部出画。</p></div></li>
+    <li><span class="step-number">02</span><div><strong>侧面拍摄，固定镜头</strong><p>投篮手臂朝向镜头，避免明显遮挡；光线充足，不要逆光。</p></div></li>
+    <li><span class="step-number">03</span><div><strong>保留一次完整投篮</strong><p>从准备动作拍到出手后的跟随动作。尽量只保留一位投篮者，避免多人干扰。</p></div></li>
+  </ul>
+  <form method="dialog"><button class="btn btn--primary" type="submit">知道了，开始练习 <span aria-hidden="true">→</span></button></form>
+</dialog>
+
+<script>
+const state = {
+  file: null,
+  pollTimer: null,
+  chart: null,
+  chartData: null,
+  userVideo: null,
+  standardVideo: null,
+  resizeBound: false,
+  cursorTime: 0,
+  previewUrl: null
+};
+
+const uploadPage = document.getElementById('upload-page');
+const loadingPage = document.getElementById('loading-page');
+const resultPage = document.getElementById('result-page');
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const fileName = document.getElementById('file-name');
+const analyzeBtn = document.getElementById('analyze-btn');
+const resetUploadBtn = document.getElementById('reset-upload-btn');
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
+const backBtn = document.getElementById('back-btn');
+const statsRow = document.getElementById('stats-row');
+const comparisonSlot = document.getElementById('comparison-slot');
+const angleChart = document.getElementById('angle-chart');
+const issuesContainer = document.getElementById('issues-container');
+const templateCard = document.getElementById('template-card');
+const templateResults = document.getElementById('template-results');
+
+const angleLabels = {
+  elbow: '肘',
+  knee: '膝',
+  forearm: '前臂',
+  torso: '躯干'
+};
+
+function showScreen(id) {
+  [uploadPage, loadingPage, resultPage].forEach(el => {
+    el.classList.toggle('is-active', el.id === id);
+  });
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function num(value, digits = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : '—';
+}
+
+function severity(score) {
+  if (score >= 80) return 'success';
+  if (score >= 60) return 'warn';
+  return 'danger';
+}
+
+function severityColor(score) {
+  if (score >= 80) return 'var(--success)';
+  if (score >= 60) return 'var(--warn)';
+  return 'var(--danger)';
+}
+
+function scoreLabel(score) {
+  if (score >= 85) return '优秀';
+  if (score >= 70) return '良好';
+  if (score >= 55) return '待优化';
+  return '需改进';
+}
+
+function formatSeconds(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? `${n.toFixed(2)}s` : '—';
+}
+
+function formatAngleDetail(angleScores) {
+  if (!angleScores) return '';
+  return Object.entries(angleScores)
+    .map(([key, value]) => `${angleLabels[key] || key}:${Math.round(Number(value) || 0)}`)
+    .join(' · ');
+}
+
+function posterUrl(filename) {
+  return filename ? `/api/reference-poster/${encodeURIComponent(filename)}` : '';
+}
+
+function icon(type) {
+  const glyphs = {
+    ring: '◎',
+    hand: '↗',
+    elbow: '∠',
+    knee: '⌒',
+    forearm: '↗',
+    similarity: '◉',
+    timer: '◷',
+    quality: '◌'
+  };
+  return `<span class="metric-icon metric-icon--${type === 'similarity' ? 'cyan' : type === 'hand' || type === 'elbow' ? 'orange' : type === 'knee' ? 'green' : 'yellow'}">${glyphs[type] || '•'}</span>`;
+}
+
+function showUploadState() {
+  showScreen('upload-page');
+}
+
+function resetPage() {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = null;
+  state.chartData = null;
+  state.cursorTime = 0;
+  state.file = null;
+  analyzeBtn.disabled = true;
+  fileInput.value = '';
+  fileName.textContent = '还没有选择视频';
+  document.getElementById('file-meta').textContent = '选择完成后，即可开始分析';
+  document.getElementById('upload-title').textContent = '拖拽视频到这里';
+  document.getElementById('upload-error').hidden = true;
+  resetUploadBtn.disabled = true;
+  clearPreview();
+  if (state.userVideo) state.userVideo.pause();
+  if (state.standardVideo) state.standardVideo.pause();
+  state.userVideo = null;
+  state.standardVideo = null;
+  progressFill.style.width = '0%';
+  progressText.textContent = '0%';
+  statsRow.innerHTML = '';
+  comparisonSlot.innerHTML = '';
+  issuesContainer.innerHTML = '';
+  templateCard.hidden = true;
+  templateResults.innerHTML = '';
+  angleChart.innerHTML = '';
+  if (state.chart) {
+    state.chart.dispose();
+    state.chart = null;
+  }
+  showUploadState();
+  setLoadingProgress(0);
+}
+
+function showUploadError(message) {
+  const error = document.getElementById('upload-error');
+  error.textContent = message;
+  error.hidden = false;
+}
+
+function clearPreview() {
+  const preview = document.getElementById('file-preview');
+  preview.pause();
+  preview.removeAttribute('src');
+  preview.load();
+  preview.hidden = true;
+  document.getElementById('file-icon').hidden = false;
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+  state.previewUrl = null;
+}
+
+function handleFile(file) {
+  if (!file) return;
+  if (!/\.(mp4|mov|avi|webm)$/i.test(file.name) || !file.size) {
+    showUploadError('请选择非空的 MP4、MOV、AVI 或 WEBM 视频文件。');
+    fileInput.value = '';
+    return;
+  }
+  clearPreview();
+  state.file = file;
+  fileName.textContent = file.name;
+  document.getElementById('file-meta').textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB · 已就绪，可以开始分析`;
+  document.getElementById('upload-title').textContent = '视频已就绪，也可以拖入新视频';
+  document.getElementById('upload-error').hidden = true;
+  state.previewUrl = URL.createObjectURL(file);
+  const preview = document.getElementById('file-preview');
+  preview.onloadeddata = () => {
+    preview.hidden = false;
+    document.getElementById('file-icon').hidden = true;
+  };
+  preview.src = state.previewUrl;
+  analyzeBtn.disabled = true;
+  document.getElementById('file-meta').textContent = '视频仅在本机预览；在线分析功能暂未开放';
+  resetUploadBtn.disabled = false;
+}
+
+uploadZone.addEventListener('click', e => {
+  if (e.target.closest('button, select, a, input, video')) return;
+  fileInput.click();
+});
+uploadZone.addEventListener('keydown', e => {
+  if (e.target === uploadZone && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('is-dragover');
+});
+uploadZone.addEventListener('dragleave', e => {
+  if (!uploadZone.contains(e.relatedTarget)) uploadZone.classList.remove('is-dragover');
+});
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('is-dragover');
+  handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+analyzeBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  startAnalysis();
+});
+resetUploadBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  resetPage();
+});
+backBtn.addEventListener('click', resetPage);
+document.getElementById('guide-open-btn').addEventListener('click', () => {
+  document.getElementById('guide-dialog').showModal();
+});
+
+function setLoadingProgress(value) {
+  const v = Math.max(0, Math.min(100, value));
+  progressFill.style.width = `${v}%`;
+  progressText.textContent = `${Math.round(v)}%`;
+  document.getElementById('loading-ring').style.setProperty('--p', `${v * 3.6}deg`);
+}
+
+async function startAnalysis() {
+  if (!state.file) return;
+  document.getElementById('upload-error').hidden = true;
+  showScreen('loading-page');
+  setLoadingProgress(8);
+  const form = new FormData();
+  form.append('file', state.file);
+  try {
+    const res = await fetch('/api/analyze', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok || !data.task_id) throw new Error(data.detail || '请稍后重试');
+    pollResult(data.task_id);
+  } catch (err) {
+    showUploadState();
+    showUploadError('上传失败：' + err.message);
+  }
+}
+
+function pollResult(taskId) {
+  let progress = 12;
+  state.pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/result/${taskId}`);
+      const data = await res.json();
+      if (data.status === 'processing') {
+        progress = Math.min(progress + 4, 92);
+        setLoadingProgress(progress);
+      } else if (data.status === 'done') {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+        setLoadingProgress(100);
+        setTimeout(() => showResult(data.report, taskId), 250);
+      } else if (data.status === 'error') {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+        showUploadState();
+        showUploadError('分析失败：' + data.error);
+      }
+    } catch (err) {
+      console.error('轮询失败', err);
+    }
+  }, 900);
+}
+
+function renderMetricCard({ title, value, note, tone, iconType }) {
+  return `
+    <article class="kpi-card metric-card tone-${tone}">
+      <div class="metric-head">
+        <div>
+          <p class="metric-label">${escapeHtml(title)}</p>
+          <p class="metric-value">${escapeHtml(value)}</p>
+        </div>
+        ${icon(iconType)}
+      </div>
+      <div class="metric-note">${escapeHtml(note || '')}</div>
+    </article>
+  `;
+}
+
+function renderScoreCard(score, report) {
+  const tone = severity(score);
+  const color = severityColor(score);
+  const angle = Math.max(0, Math.min(100, Number(score) || 0)) * 3.6;
+  const standard = report.standard_comparison || {};
+  const similarity = Number(standard.overall_similarity ?? 0) || 0;
+  return `
+    <article class="kpi-card kpi-score tone-${tone}" style="--ring-a:${color};--ring-b:${tone === 'success' ? '#78ff9b' : tone === 'warn' ? '#ffcc66' : '#ff7676'}">
+      <div class="score-ring" style="--score-angle:${angle}deg">
+        <div class="score-ring__inner">
+          <div class="score-value">${num(score, 1)}</div>
+          <div class="score-unit">分</div>
+        </div>
+      </div>
+      <div class="score-meta">
+        <span class="status-pill ${tone === 'success' ? 'status-pill--accent' : tone === 'warn' ? '' : 'status-pill--danger'}">${scoreLabel(score)}</span>
+        <h3>综合评分</h3>
+        <p>先和标准模板比，再看最相关的球星参考。球星元素只作娱乐补充，不作为主要判断依据。</p>
+        <div class="summary-pills">
+          <span class="status-pill">标准相似度 ${num(similarity, 1)}分</span>
+          <span class="status-pill">标准优先</span>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderDashboard(report) {
+  const overall = Number(report.overall_score || 0);
+  const angles = report.release_angles || {};
+  const standard = report.standard_comparison || {};
+  const similarity = Number(standard.overall_similarity ?? 0) || 0;
+  const confidence = Math.round((Number(report.release_confidence) || 0) * 100);
+  statsRow.innerHTML = [
+    renderScoreCard(overall, report),
+    renderMetricCard({
+      title: '投篮手',
+      value: report.shooting_hand || '—',
+      note: '主导手',
+      tone: 'success',
+      iconType: 'hand'
+    }),
+    renderMetricCard({
+      title: '肘关节角度',
+      value: `${num(angles.elbow, 0)}°`,
+      note: '出手定点',
+      tone: severity(Number(angles.elbow) || 0),
+      iconType: 'elbow'
+    }),
+    renderMetricCard({
+      title: '膝关节角度',
+      value: `${num(angles.knee, 0)}°`,
+      note: '起跳发力',
+      tone: severity(Number(angles.knee) || 0),
+      iconType: 'knee'
+    }),
+    renderMetricCard({
+      title: '前臂仰角',
+      value: `${num(angles.forearm, 0)}°`,
+      note: '出手轨迹',
+      tone: severity(Number(angles.forearm) || 0),
+      iconType: 'forearm'
+    }),
+    renderMetricCard({
+      title: '标准相似度',
+      value: `${num(similarity, 1)}分`,
+      note: standard.name || '标准模板',
+      tone: severity(similarity),
+      iconType: 'similarity'
+    }),
+    renderMetricCard({
+      title: '出手识别度',
+      value: `${confidence}%`,
+      note: '动作抓取质量',
+      tone: severity(confidence),
+      iconType: 'quality'
+    })
+  ].join('');
+}
+
+function setupVideoFrame(frame, video) {
+  const applyRatio = () => {
+    const ratio = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 9 / 16;
+    frame.style.setProperty('--ratio', ratio);
+  };
+  video.addEventListener('loadedmetadata', applyRatio);
+  applyRatio();
+}
+
+function setupVideoSync(primary, secondary) {
+  if (!primary || !secondary) return;
+  secondary.muted = true;
+  const syncRate = () => { secondary.playbackRate = primary.playbackRate || 1; };
+  const syncTime = () => {
+    if (!Number.isFinite(primary.currentTime)) return;
+    const diff = Math.abs((secondary.currentTime || 0) - primary.currentTime);
+    if (diff > 0.08) {
+      try { secondary.currentTime = primary.currentTime; } catch (_) {}
+    }
+    updateChartCursor(primary.currentTime);
+  };
+  primary.addEventListener('play', () => {
+    syncRate();
+    secondary.play().catch(() => {});
+  });
+  primary.addEventListener('pause', () => secondary.pause());
+  primary.addEventListener('seeked', syncTime);
+  primary.addEventListener('seeking', syncTime);
+  primary.addEventListener('timeupdate', syncTime);
+  primary.addEventListener('ratechange', syncRate);
+  primary.addEventListener('loadedmetadata', syncTime);
+  secondary.addEventListener('loadedmetadata', syncTime);
+  syncRate();
+  syncTime();
+}
+
+function buildComparison(report, taskId) {
+  const standard = report.standard_comparison || {};
+  const standardName = standard.name || '标准模板';
+  const standardStyle = standard.style_group || report.standard_style_group || '';
+  const standardStyleMap = {
+    one_motion: '一段式',
+    two_motion: '两段式',
+    textbook: '教科书',
+    high_release: '高出手'
+  };
+  const standardVideoName = report.standard_reference_video || 'standard_reference.mp4';
+  const standardSimilarity = Number(standard.overall_similarity ?? 0) || 0;
+  const standardDetail = formatAngleDetail(standard.angle_scores);
+  const hiddenReason = !report.star_recommendation_visible && report.star_recommendation_reason ? report.star_recommendation_reason : '';
+
+  comparisonSlot.innerHTML = `
+    <div class="compare-grid">
+      <article class="video-card">
+        <div class="video-head">
+          <span>你的视频</span>
+          <span class="status-pill status-pill--accent">同步播放</span>
+        </div>
+        <div class="video-frame" id="user-frame">
+          <video id="result-video" controls playsinline preload="metadata" controlsList="nodownload"></video>
+        </div>
+      </article>
+      <article class="video-card">
+        <div class="video-head">
+          <span>标准模板</span>
+          <span class="status-pill" id="standard-video-pill">${escapeHtml(standardName)}</span>
+        </div>
+        <div class="video-frame" id="standard-frame">
+          <video id="standard-video" muted playsinline preload="metadata"></video>
+        </div>
+      </article>
+    </div>
+    <div class="compare-summary">
+      <div class="summary-pills" id="standard-summary">
+        <span class="status-pill">标准相似度 ${num(standardSimilarity, 1)}分</span>
+        ${standardStyle ? `<span class="status-pill">风格 ${escapeHtml(standardStyleMap[standardStyle] || standardStyle)}</span>` : ''}
+        ${standardName ? `<span class="status-pill">${escapeHtml(standardName)}</span>` : ''}
+      </div>
+      <div class="mini-note">
+        ${standardDetail ? `标准动作细节：${escapeHtml(standardDetail)}` : '标准动作已同步加载。'}
+        ${hiddenReason ? `<br>球星对照已隐藏：${escapeHtml(hiddenReason)}` : ''}
+      </div>
+    </div>
+  `;
+
+  const userVideo = document.getElementById('result-video');
+  const standardVideo = document.getElementById('standard-video');
+  const userFrame = document.getElementById('user-frame');
+  const standardFrame = document.getElementById('standard-frame');
+
+  state.userVideo = userVideo;
+  state.standardVideo = standardVideo;
+  userVideo.src = `/api/video/${taskId}.mp4`;
+  standardVideo.src = `/api/video/${standardVideoName}`;
+  standardVideo.poster = posterUrl(standardVideoName);
+  setupVideoFrame(userFrame, userVideo);
+  setupVideoFrame(standardFrame, standardVideo);
+  setupVideoSync(userVideo, standardVideo);
+
+  const speedSelector = document.getElementById('speed-selector');
+  speedSelector.value = '1';
+  speedSelector.onchange = () => changeSpeed(speedSelector.value);
+}
+
+function changeSpeed(speed) {
+  const rate = Number(speed) || 1;
+  if (state.userVideo) state.userVideo.playbackRate = rate;
+  if (state.standardVideo) state.standardVideo.playbackRate = rate;
+}
+
+function renderChart(timeline, releaseTime) {
+  const data = timeline || {};
+  const times = Array.isArray(data.time) ? data.time : [];
+  const elbow = Array.isArray(data.elbow) ? data.elbow : [];
+  const knee = Array.isArray(data.knee) ? data.knee : [];
+  const forearm = Array.isArray(data.forearm) ? data.forearm : [];
+  const torso = Array.isArray(data.torso) ? data.torso : [];
+  const points = times.map((time, index) => [time, [elbow[index], knee[index], forearm[index], torso[index]]]);
+  const release = Number(releaseTime);
+
+  if (state.chart) {
+    state.chart.dispose();
+    state.chart = null;
+  }
+
+  state.chart = echarts.init(angleChart);
+  state.chartData = {
+    times,
+    min: times.length ? Math.min(...times) : 0,
+    max: times.length ? Math.max(...times) : 1
+  };
+  state.chart.setOption({
+    backgroundColor: 'transparent',
+    animation: true,
+    color: ['#df5b30', '#578a89', '#87945c', '#9c80ad'],
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#ffffff',
+      borderColor: '#e6e8e0',
+      textStyle: { color: '#242823' },
+      confine: true
+    },
+    legend: {
+      top: 0,
+      left: 0,
+      textStyle: { color: '#636c5e', fontSize: 12 },
+      itemWidth: 16,
+      itemHeight: 10
+    },
+    grid: { left: 12, right: 16, top: 56, bottom: 42, containLabel: true },
+    xAxis: {
+      type: 'value',
+      name: '时间 (秒)',
+      nameLocation: 'middle',
+      nameGap: 30,
+      nameTextStyle: { color: '#787d73' },
+      axisLabel: { color: '#787d73' },
+      axisLine: { lineStyle: { color: '#e6e8e0' } },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      name: '角度 (°)',
+      nameTextStyle: { color: '#787d73' },
+      axisLabel: { color: '#787d73' },
+      axisLine: { lineStyle: { color: '#e6e8e0' } },
+      splitLine: { lineStyle: { color: '#eff0e9' } }
+    },
+    media: [
+      { query: { maxWidth: 520 }, option: {
+        legend: { right: 0, itemGap: 12, textStyle: { fontSize: 11 } },
+        grid: { left: 2, right: 10, top: 76, bottom: 42 },
+        xAxis: { splitNumber: 4 }
+      } },
+      { option: {
+        legend: { right: 'auto', itemGap: 18, textStyle: { fontSize: 12 } },
+        grid: { left: 12, right: 16, top: 56, bottom: 42 },
+        xAxis: { splitNumber: 5 }
+      } }
+    ],
+    series: [
+      {
+        name: '肘关节',
+        type: 'line',
+        data: points.map(item => [item[0], item[1][0]]),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2.2, color: '#df5b30' },
+        areaStyle: { color: 'rgba(223,91,48,.035)' },
+        markLine: release > 0 ? {
+          silent: true,
+          symbol: ['none', 'none'],
+          label: { formatter: '出手', color: '#b84a28', backgroundColor: '#faede6', padding: [4,8], borderRadius: 4 },
+          lineStyle: { color: '#df5b30', width: 1.5, type: 'dashed' },
+          data: [{ xAxis: release }]
+        } : undefined
+      },
+      {
+        name: '膝关节',
+        type: 'line',
+        data: points.map(item => [item[0], item[1][1]]),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2.2, color: '#578a89' },
+        areaStyle: { color: 'rgba(87,138,137,.025)' }
+      },
+      {
+        name: '前臂仰角',
+        type: 'line',
+        data: points.map(item => [item[0], item[1][2]]),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2.2, color: '#87945c' },
+        areaStyle: { color: 'rgba(135,148,92,.025)' }
+      },
+      {
+        name: '躯干前后倾',
+        type: 'line',
+        data: points.map(item => [item[0], item[1][3]]),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { width: 2.2, color: '#9c80ad' },
+        areaStyle: { color: 'rgba(156,128,173,.025)' }
+      }
+    ]
+  }, true);
+
+  updateChartCursor(0);
+}
+
+function updateChartCursor(time) {
+  state.cursorTime = Number(time) || 0;
+  if (!state.chart || !state.chartData) return;
+  const { min, max } = state.chartData;
+  const cursorTime = Math.max(min, Math.min(max, state.cursorTime));
+  const x = state.chart.convertToPixel({ xAxisIndex: 0 }, cursorTime);
+  if (!Number.isFinite(x)) return;
+  const height = state.chart.getHeight();
+  const top = state.chart.getWidth() <= 520 ? 76 : 56;
+  state.chart.setOption({
+    graphic: [{
+      id: 'time-cursor',
+      type: 'group',
+      silent: true,
+      children: [
+        {
+          type: 'line',
+          shape: { x1: x, y1: top, x2: x, y2: height - 62 },
+          style: {
+            stroke: '#52694a',
+            lineWidth: 1.5
+          }
+        },
+        {
+          type: 'circle',
+          shape: { cx: x, cy: top, r: 4 },
+          style: {
+            fill: '#52694a'
+          }
+        }
+      ]
+    }]
+  });
+}
+
+
+
+function renderDiagnostics(report) {
+  const items = [];
+  const qualityIssue = Array.isArray(report.issues) ? report.issues.find(item => item && item.type === 'quality') : null;
+  if (qualityIssue) {
+    items.push({
+      title: qualityIssue.title || '视频质量提醒',
+      detail: qualityIssue.detail || '',
+      suggestion: qualityIssue.suggestion || '',
+      score: Number(qualityIssue.score ?? 0)
+    });
+  }
+  const points = Array.isArray(report.improvement_points) ? report.improvement_points : [];
+  points.forEach(item => {
+    items.push({
+      title: item.title || '改进点',
+      detail: item.detail || '',
+      suggestion: item.suggestion || '',
+      score: Number(item.score ?? 0)
+    });
+  });
+  if (!items.length) {
+    issuesContainer.innerHTML = '<div class="empty-state">✓ 当前动作没有明显扣分项，继续保持这个节奏就行。</div>';
+    return;
+  }
+  issuesContainer.innerHTML = items.map(item => {
+    const tone = severity(Number(item.score) || 0);
+    const score = Number(item.score) || 0;
+    return `
+      <article class="issue-card tone-${tone}">
+        <div class="issue-top">
+          <div>
+            <p class="issue-title">${escapeHtml(item.title)}</p>
+            <p class="issue-detail">${escapeHtml(item.detail)}</p>
+          </div>
+          <div class="issue-score">${num(score, 0)}分</div>
+        </div>
+        <div class="issue-bar"><span style="width:${Math.max(6, Math.min(100, score))}%"></span></div>
+        ${item.suggestion ? `<p class="issue-tip">建议：${escapeHtml(item.suggestion)}</p>` : ''}
+      </article>
+    `;
+  }).join('');
+}
+
+function renderStars(report) {
+  const stars = Array.isArray(report.star_comparison || report.template_comparison) ? (report.star_comparison || report.template_comparison).slice(0, 2) : [];
+  const hiddenReason = !report.star_recommendation_visible && report.star_recommendation_reason ? report.star_recommendation_reason : '';
+  if (!stars.length && !hiddenReason) {
+    templateCard.hidden = true;
+    templateResults.innerHTML = '';
+    return;
+  }
+  templateCard.hidden = false;
+  if (stars.length) {
+    templateResults.innerHTML = stars.map((star, index) => {
+      const score = Number(star.overall_similarity ?? 0) || 0;
+      const tone = severity(score);
+      const detail = formatAngleDetail(star.angle_scores);
+      const preview = star.reference_video ? `
+        <div class="star-media">
+          <video src="/api/video/${escapeHtml(star.reference_video)}" poster="${posterUrl(star.reference_video)}" muted playsinline loop autoplay preload="metadata"></video>
+        </div>` : '';
+      const source = star.source && star.source.url ? `<div class="star-source">来源：<a href="${escapeHtml(star.source.url)}" target="_blank" rel="noreferrer">${escapeHtml(star.source.title || star.source.url)}</a></div>` : '';
+      return `
+        <article class="star-card tone-${tone}">
+          ${preview}
+          <div class="star-top">
+            <div>
+              <p class="star-name">${escapeHtml(star.name || `球星 ${index + 1}`)}</p>
+              <p class="star-desc">${escapeHtml(star.description || '')}</p>
+            </div>
+            <div class="status-pill ${tone === 'success' ? 'status-pill--accent' : tone === 'warn' ? '' : 'status-pill--danger'}">${num(score, 0)}分</div>
+          </div>
+          ${detail ? `<div class="star-detail">${escapeHtml(detail)}</div>` : ''}
+          ${source}
+        </article>
+      `;
+    }).join('');
+  } else {
+    templateResults.innerHTML = `
+      <div class="alert-box">
+        当前动作偏离标准较大，已隐藏球星对照。先把标准模板做对，再看球星风格会更稳。
+        <br><br>
+        原因：${escapeHtml(hiddenReason)}
+      </div>
+    `;
+  }
+}
+
+function showResult(report, taskId) {
+  showScreen('result-page');
+  renderDashboard(report || {});
+  buildComparison(report || {}, taskId);
+  renderDiagnostics(report || {});
+  renderStars(report || {});
+  requestAnimationFrame(() => {
+    renderChart(report.angle_timeline || {}, report.release_time);
+    if (state.userVideo) updateChartCursor(state.userVideo.currentTime || 0);
+  });
+}
+
+window.addEventListener('resize', () => {
+  if (state.chart) {
+    state.chart.resize();
+    updateChartCursor(state.cursorTime);
+  }
+});
+
+</script>
+</body>
+</html>
+
